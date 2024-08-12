@@ -1,0 +1,112 @@
+cat <<EOF > locust-all-in-one.yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: locust
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: locust-master
+  namespace: locust
+spec:
+  selector:
+    app: locust
+    role: master
+  ports:
+    - name: web
+      protocol: TCP
+      port: 8089
+      targetPort: 8089
+    - name: master-1
+      protocol: TCP
+      port: 5557
+      targetPort: 5557
+    - name: master-2
+      protocol: TCP
+      port: 5558
+      targetPort: 5558
+  type: ClusterIP
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: locust-master
+  namespace: locust
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: locust
+      role: master
+  template:
+    metadata:
+      labels:
+        app: locust
+        role: master
+    spec:
+      containers:
+        - name: locust
+          image: payloadpat/eks-workshop-locust:latest
+          args: ["--master"]
+          ports:
+            - containerPort: 8089
+            - containerPort: 5557
+            - containerPort: 5558
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: locust-worker
+  namespace: locust
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: locust
+      role: worker
+  template:
+    metadata:
+      labels:
+        app: locust
+        role: worker
+    spec:
+      containers:
+        - name: locust
+          image: payloadpat/eks-workshop-locust:latest
+          args: ["--worker", "--master-host", "locust-master"]
+          env:
+            - name: LOCUST_MODE
+              value: worker
+            - name: LOCUST_MASTER_HOST
+              value: locust-master
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: locust-ingress
+  namespace: locust
+  labels:
+    app.kubernetes.io/created-by: eks-workshop
+  annotations:
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/healthcheck-path: /
+    alb.ingress.kubernetes.io/group.name: retail-app-group
+    alb.ingress.kubernetes.io/scheme: internet-facing
+spec:
+  ingressClassName: alb
+  rules:
+    - http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: locust-master
+                port:
+                  number: 8089
+EOF
