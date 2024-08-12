@@ -1,3 +1,6 @@
+mkdir ~/environment/locust
+cd ~/environment/locust
+
 cat <<EOF > locust.yaml
 apiVersion: v1
 kind: Namespace
@@ -110,3 +113,7 @@ spec:
                 port:
                   number: 8089
 EOF
+
+kubectl apply -f locust.yaml
+
+cd ~/environment/
