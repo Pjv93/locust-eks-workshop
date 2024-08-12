@@ -1,4 +1,4 @@
-cat <<EOF > locust-all-in-one.yaml
+cat <<EOF > locust.yaml
 apiVersion: v1
 kind: Namespace
 metadata:
